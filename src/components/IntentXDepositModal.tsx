@@ -149,8 +149,7 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
                 contractAddress: DIAMOND_ADDRESS[SupportedChainId.BASE],
                 contractName: "IntentX Deposit",
                 contractGasLimit: "800000",
-                contractPayload: contractPayload,
-                contractLogoURI: "https://img.cryptorank.io/coins/intent_x1700642634517.png"
+                contractPayload: contractPayload
             });
 
             // Open the Aarc modal

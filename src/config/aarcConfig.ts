@@ -30,6 +30,7 @@ export const aarcConfig: FKConfig = {
       contractName: "IntentX Deposit",
       contractPayload: "0x", // This will be updated dynamically
       contractGasLimit: "300000", // Standard gas limit, can be adjusted if needed
+      contractLogoURI: "https://img.cryptorank.io/coins/intent_x1700642634517.png"
     },
     walletAddress: DIAMOND_ADDRESS[SupportedChainId.BASE],
     chainId: 8453, // Base chain ID
