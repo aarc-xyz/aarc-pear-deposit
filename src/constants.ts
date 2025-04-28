@@ -1,18 +1,19 @@
 export enum SupportedChainId {
-    BASE = 8453
+    ARBITRUM = 42161
 }
 
 export type AddressMap = {
     [chainId: number]: string;
 };
 
-export const DIAMOND_ADDRESS: AddressMap = {
-    [SupportedChainId.BASE]: '0x91Cf2D8Ed503EC52768999aA6D8DBeA6e52dbe43'
+export const PEAR_SYMMIO_ACCOUNT_ADDRESS: AddressMap = {
+    [SupportedChainId.ARBITRUM]: '0x6273242a7E88b3De90822b31648C212215caaFE4'
 };
 
-export const MULTIACCOUNT_ADDRESS: AddressMap = {
-    [SupportedChainId.BASE]: '0x8Ab178C07184ffD44F0ADfF4eA2ce6cFc33F3b86'
+export const PEAR_SYMMIO_DIAMOND_ADDRESS: AddressMap = {
+    [SupportedChainId.ARBITRUM]: '0x8F06459f184553e5d04F07F868720BDaCAB39395'
 };
+
 
 export const multiAccountAbi = [
     {
@@ -81,4 +82,4 @@ export const multiAccountAbi = [
     }
 ] as const;
 
-export const BASE_RPC_URL = "https://mainnet.base.org";
+export const ARBITRUM_RPC_URL = "https://arb1.arbitrum.io/rpc";

@@ -5,11 +5,5 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [
     react()
-  ],
-  preview: {
-    allowedHosts: [
-      'aarc-intentx-deposit.onrender.com',
-      '.onrender.com' // This will allow all subdomains on render.com
-    ]
-  }
+  ]
 })

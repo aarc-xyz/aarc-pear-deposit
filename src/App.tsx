@@ -6,13 +6,7 @@ import { AarcFundKitModal } from '@aarc-xyz/fundkit-web-sdk';
 import { useRef } from 'react';
 import { AarcEthWalletConnector, wagmiConfig } from '@aarc-xyz/eth-connector';
 import { aarcConfig } from './config/aarcConfig';
-import DepositModal from './components/IntentXDepositModal';
-
-declare global {
-  interface Window {
-    __VUE__: boolean;
-  }
-}
+import DepositModal from './components/PearProtocolDepositModal';
 
 const queryClient = new QueryClient();
 

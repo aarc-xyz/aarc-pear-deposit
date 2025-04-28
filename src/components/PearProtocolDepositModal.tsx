@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect, useWriteContract } from 'wagmi';
 import { ethers } from 'ethers';
 import { AarcFundKitModal } from '@aarc-xyz/fundkit-web-sdk';
-import { BASE_RPC_URL, DIAMOND_ADDRESS, MULTIACCOUNT_ADDRESS, multiAccountAbi, SupportedChainId } from '../constants';
-import { BASE_CHAIN_ID } from '../chain';
+import { ARBITRUM_RPC_URL, multiAccountAbi, PEAR_SYMMIO_ACCOUNT_ADDRESS, PEAR_SYMMIO_DIAMOND_ADDRESS, SupportedChainId } from '../constants';
+import { ARB_CHAIN_ID } from '../chain';
 import { Navbar } from './Navbar';
 import StyledConnectButton from './StyledConnectButton';
 
@@ -12,7 +12,7 @@ interface SubAccount {
     name: string;
 }
 
-export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal }) => {
+export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal }) => {
     const [amount, setAmount] = useState('20');
     const [isProcessing, setIsProcessing] = useState(false);
     const [subAccounts, setSubAccounts] = useState<SubAccount[]>([]);
@@ -46,11 +46,11 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
     };
 
     // Create provider instance
-    const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
+    const provider = new ethers.JsonRpcProvider(ARBITRUM_RPC_URL);
 
     useEffect(() => {
         if (chain) {
-            setIsWrongNetwork(chain.id !== BASE_CHAIN_ID);
+            setIsWrongNetwork(chain.id !== ARB_CHAIN_ID);
         }
     }, [chain]);
 
@@ -65,7 +65,7 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
 
         try {
             const multiAccountContract = new ethers.Contract(
-                MULTIACCOUNT_ADDRESS[SupportedChainId.BASE],
+                PEAR_SYMMIO_ACCOUNT_ADDRESS[SupportedChainId.ARBITRUM],
                 multiAccountAbi,
                 provider
             );
@@ -96,7 +96,7 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
         try {
             setIsCreatingAccount(true);
             await addAccount({
-                address: MULTIACCOUNT_ADDRESS[SupportedChainId.BASE] as `0x${string}`,
+                address: PEAR_SYMMIO_ACCOUNT_ADDRESS[SupportedChainId.ARBITRUM] as `0x${string}`,
                 abi: multiAccountAbi,
                 functionName: 'addAccount',
                 args: [newAccountName],
@@ -131,13 +131,13 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
             setIsProcessing(true);
 
             // Generate calldata for depositFor function on Diamond contract
-            const diamondInterface = new ethers.Interface([
+            const pearSymmioInterface = new ethers.Interface([
                 "function depositFor(address user, uint256 amount) external",
             ]);
 
             const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
 
-            const contractPayload = diamondInterface.encodeFunctionData("depositFor", [
+            const contractPayload = pearSymmioInterface.encodeFunctionData("depositFor", [
                 selectedAccount.accountAddress, // Use the selected subaccount address
                 amountInWei,
             ]);
@@ -146,8 +146,8 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
 
             // Update Aarc's destination contract configuration
             aarcModal.updateDestinationContract({
-                contractAddress: DIAMOND_ADDRESS[SupportedChainId.BASE],
-                contractName: "IntentX Deposit",
+                contractAddress: PEAR_SYMMIO_DIAMOND_ADDRESS[SupportedChainId.ARBITRUM],
+                contractName: "Pear Protocol Deposit",
                 contractGasLimit: "800000",
                 contractPayload: contractPayload
             });
@@ -175,7 +175,7 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
                             <div className="flex items-start gap-2">
                                 <img src="/warning-icon.svg" alt="Warning" className="w-4 h-4 mt-[2px]" />
                                 <p className="text-xs font-bold text-[#FF4D4D] leading-5">
-                                    Please switch to Base network to continue
+                                    Please switch to Arbitrum network to continue
                                 </p>
                             </div>
                         </div>
@@ -213,9 +213,9 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
                             <button
                                 onClick={() => !isWrongNetwork && setIsCreatingNewAccount(true)}
                                 disabled={isWrongNetwork}
-                                        className="flex items-center justify-center w-full p-3 bg-[#A5E547] text-[#003300] font-semibold rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed gap-2"
+                                className="flex items-center justify-center w-full p-3 bg-[#A5E547] text-[#003300] font-semibold rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed gap-2"
                             >
-                                        Create Your First Sub Account
+                                Create your first account
                             </button>
                         )}
 
@@ -242,7 +242,7 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
                                     }}
                                     className="w-full p-3 text-left text-[#A5E547] hover:bg-[#424242] transition-colors border-t border-[#424242]"
                                 >
-                                    + Create New Account
+                                    + Create a new account
                                 </button>
                             </div>
                         )}
@@ -311,12 +311,22 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
                         ))}
                     </div>
 
-                    {/* Warning Message */}
-                    <div className="flex gap-x-2 items-start p-4 bg-[rgba(255,183,77,0.05)] border border-[rgba(255,183,77,0.2)] rounded-2xl mt-2">
+                    {/* Deposit Info */}
+                    <div className="w-full flex gap-x-2 items-start p-4 bg-[rgba(165,229,71,0.05)] border border-[rgba(165,229,71,0.2)] rounded-2xl">
                         <img src="/info-icon.svg" alt="Info" className="w-4 h-4 mt-[2px]" />
-                        <p className="text-xs font-bold text-[#F6F6F6] leading-5">
-                            Important! To withdraw your deposited funds, please wait 720 minutes (12 hours) from the time of deposit.
-                        </p>
+                        <div className="text-xs text-[#F6F6F6] leading-5">
+                            <p className="font-bold mb-1">After your deposit is completed:</p>
+                            <p>Check your deposit balance on{' '}
+                                <a
+                                    href="https://intent.pear.garden/trade/BTC-ETH"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[#A5E547] hover:underline"
+                                >
+                                    Pear protocol
+                                </a>
+                            </p>
+                        </div>
                     </div>
 
                     {/* Continue Button */}
@@ -344,4 +354,4 @@ export const IntentXDepositModal = ({ aarcModal }: { aarcModal: AarcFundKitModal
     );
 };
 
-export default IntentXDepositModal;
+export default PearProtocolDepositModal;
