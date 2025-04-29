@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect, useWriteContract } from 'wagmi';
 import { ethers } from 'ethers';
 import { AarcFundKitModal } from '@aarc-xyz/fundkit-web-sdk';
-import { ARBITRUM_RPC_URL, multiAccountAbi, PEAR_SYMMIO_ACCOUNT_ADDRESS, PEAR_SYMMIO_DIAMOND_ADDRESS, SupportedChainId } from '../constants';
+import { ARBITRUM_RPC_URL, multiAccountAbi, PEAR_PROVIDERS, PEAR_SYMMIO_ACCOUNT_ADDRESS, PEAR_SYMMIO_DIAMOND_ADDRESS, SupportedChainId } from '../constants';
 import { ARB_CHAIN_ID } from '../chain';
 import { Navbar } from './Navbar';
 import StyledConnectButton from './StyledConnectButton';
@@ -17,7 +17,9 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const [isProcessing, setIsProcessing] = useState(false);
     const [subAccounts, setSubAccounts] = useState<SubAccount[]>([]);
     const [selectedAccount, setSelectedAccount] = useState<SubAccount | null>(null);
+    const [selectedProvider, setSelectedProvider] = useState('SYMM.io');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
     const [isWrongNetwork, setIsWrongNetwork] = useState(false);
     const [newAccountName, setNewAccountName] = useState('');
@@ -184,29 +186,100 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                     {/* Account Selection or Create First Account */}
                     <div className="w-full relative">
                         <h3 className="text-[14px] font-semibold text-[#F6F6F6] mb-4">Account to Deposit in</h3>
+
                         {subAccounts.length > 0 ? (
-                            <button
-                                onClick={() => !shouldDisableInteraction && setIsDropdownOpen(!isDropdownOpen)}
-                                disabled={shouldDisableInteraction}
-                                className="flex items-center justify-between w-full p-3 bg-[#2A2A2A] border border-[#424242] rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <span className="text-base text-[#F6F6F6] font-normal">
-                                    {selectedAccount?.accountAddress ?
-                                        `${selectedAccount.name} (${selectedAccount.accountAddress.slice(0, 6)}...${selectedAccount.accountAddress.slice(-4)})` :
-                                        'Select Account'
-                                    }
-                                </span>
-                                <svg
-                                    width="16"
-                                    height="16"
-                                    viewBox="0 0 16 16"
-                                    fill="none"
-                                    className={`transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path d="M4 6L8 10L12 6" stroke="#F6F6F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                            </button>
+                            <div className="flex flex-col gap-2">
+                                <div className="relative">
+                                    <button
+                                        onClick={() => !shouldDisableInteraction && setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+                                        disabled={shouldDisableInteraction}
+                                        className="flex items-center justify-between w-full p-3 bg-[#2A2A2A] border border-[#424242] rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="text-base text-[#F6F6F6] font-normal">
+                                            {selectedProvider}
+                                        </span>
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            className={`transform transition-transform ${isProviderDropdownOpen ? 'rotate-180' : ''}`}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path d="M4 6L8 10L12 6" stroke="#F6F6F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </button>
+
+                                    {isProviderDropdownOpen && (
+                                        <div className="absolute w-full mt-2 bg-[#2A2A2A] border border-[#424242] rounded-2xl overflow-hidden z-50">
+                                            {PEAR_PROVIDERS.map((provider) => (
+                                                <button
+                                                    key={provider}
+                                                    onClick={() => {
+                                                        setSelectedProvider(provider);
+                                                        setIsProviderDropdownOpen(false);
+                                                    }}
+                                                    className="w-full p-3 text-left text-[#F6F6F6] hover:bg-[#424242] transition-colors"
+                                                >
+                                                    {provider}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="relative">
+                                    <button
+                                        onClick={() => !shouldDisableInteraction && setIsDropdownOpen(!isDropdownOpen)}
+                                        disabled={shouldDisableInteraction}
+                                        className="flex items-center justify-between w-full p-3 bg-[#2A2A2A] border border-[#424242] rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="text-base text-[#F6F6F6] font-normal">
+                                            {selectedAccount?.accountAddress ?
+                                                `${selectedAccount.name} (${selectedAccount.accountAddress.slice(0, 6)}...${selectedAccount.accountAddress.slice(-4)})` :
+                                                'Select Account'
+                                            }
+                                        </span>
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            className={`transform transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path d="M4 6L8 10L12 6" stroke="#F6F6F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Account Dropdown Menu */}
+                                    {isDropdownOpen && subAccounts.length > 0 && (
+                                        <div className="absolute w-full mt-2 bg-[#2A2A2A] border border-[#424242] rounded-2xl overflow-hidden z-50">
+                                            {subAccounts.map((account) => (
+                                                <button
+                                                    key={account.accountAddress}
+                                                    onClick={() => {
+                                                        setSelectedAccount(account);
+                                                        setIsDropdownOpen(false);
+                                                    }}
+                                                    className="w-full p-3 text-left text-[#F6F6F6] hover:bg-[#424242] transition-colors"
+                                                >
+                                                    {account.name} ({account.accountAddress.slice(0, 6)}...{account.accountAddress.slice(-4)})
+                                                </button>
+                                            ))}
+                                            <button
+                                                onClick={() => {
+                                                    setIsCreatingNewAccount(true);
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className="w-full p-3 text-left text-[#A5E547] hover:bg-[#424242] transition-colors border-t border-[#424242]"
+                                            >
+                                                + Create a new account
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         ) : !address ? (
                             <StyledConnectButton />
                         ) : (
@@ -217,34 +290,6 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                             >
                                 Create your first account
                             </button>
-                        )}
-
-
-                        {/* Dropdown Menu */}
-                        {isDropdownOpen && subAccounts.length > 0 && (
-                            <div className="absolute w-full mt-2 bg-[#2A2A2A] border border-[#424242] rounded-2xl overflow-hidden z-50">
-                                {subAccounts.map((account) => (
-                                    <button
-                                        key={account.accountAddress}
-                                        onClick={() => {
-                                            setSelectedAccount(account);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="w-full p-3 text-left text-[#F6F6F6] hover:bg-[#424242] transition-colors"
-                                    >
-                                        {account.name} ({account.accountAddress.slice(0, 6)}...{account.accountAddress.slice(-4)})
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={() => {
-                                        setIsCreatingNewAccount(true);
-                                        setIsDropdownOpen(false);
-                                    }}
-                                    className="w-full p-3 text-left text-[#A5E547] hover:bg-[#424242] transition-colors border-t border-[#424242]"
-                                >
-                                    + Create a new account
-                                </button>
-                            </div>
                         )}
                     </div>
 

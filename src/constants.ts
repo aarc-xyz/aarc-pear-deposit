@@ -14,6 +14,11 @@ export const PEAR_SYMMIO_DIAMOND_ADDRESS: AddressMap = {
     [SupportedChainId.ARBITRUM]: '0x8F06459f184553e5d04F07F868720BDaCAB39395'
 };
 
+export const PEAR_PROVIDERS = [
+    "Hyperliquid",
+    "SYMM.io",
+    "Vertex"
+];
 
 export const multiAccountAbi = [
     {
