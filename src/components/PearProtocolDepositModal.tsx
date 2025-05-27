@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useAccount, useDisconnect, useWriteContract } from 'wagmi';
+import { useAccount, useDisconnect, useWriteContract, useSwitchChain, useWalletClient } from 'wagmi';
 import { ethers } from 'ethers';
 import { AarcFundKitModal } from '@aarc-xyz/fundkit-web-sdk';
-import { ARBITRUM_RPC_URL, multiAccountAbi, PEAR_PROVIDERS, PEAR_SYMMIO_ACCOUNT_ADDRESS, PEAR_SYMMIO_DIAMOND_ADDRESS, SupportedChainId } from '../constants';
+import { ARBITRUM_RPC_URL, multiAccountAbi, PEAR_PROVIDERS, PEAR_SYMMIO_ACCOUNT_ADDRESS, PEAR_SYMMIO_DIAMOND_ADDRESS, SupportedChainId, USDC_ADDRESS, USDC_ABI, HYPERLIQUID_DEPOSIT_ADDRESS, VERTEX_DEPOSIT_ADDRESS } from '../constants';
 import { ARB_CHAIN_ID } from '../chain';
 import { Navbar } from './Navbar';
-import StyledConnectButton from './StyledConnectButton';
 
 interface SubAccount {
     accountAddress: string;
@@ -24,9 +23,30 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const [isWrongNetwork, setIsWrongNetwork] = useState(false);
     const [newAccountName, setNewAccountName] = useState('');
     const [isCreatingNewAccount, setIsCreatingNewAccount] = useState(false);
+    const [showProcessingModal, setShowProcessingModal] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { data: walletClient } = useWalletClient();
     const { disconnect } = useDisconnect();
+    const { switchChain } = useSwitchChain();
 
     const { address, chain } = useAccount();
+
+    const MIN_DEPOSIT_AMOUNT = 5;
+    const showMinDepositWarning = (selectedProvider === 'Hyperliquid' || selectedProvider === 'Vertex') && Number(amount) < MIN_DEPOSIT_AMOUNT;
+
+    const generateVertexSubaccount = (userAddress: string, accountName: string) => {
+        // Remove '0x' prefix if present
+        const cleanAddress = userAddress.startsWith('0x') ? userAddress.slice(2) : userAddress;
+
+        // Convert account name to hex and pad to 32 bytes
+        const nameHex = ethers.encodeBytes32String(accountName).slice(2);
+
+        // Use the full address (20 bytes = 40 hex characters)
+        const subaccountHex = cleanAddress + nameHex.slice(0, 24); // Take only 12 bytes from name to make total 32 bytes
+
+        // Add '0x' prefix
+        return '0x' + subaccountHex;
+    };
 
     const handleDisconnect = () => {
         // Reset all state values
@@ -127,37 +147,85 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     };
 
     const handleDeposit = async () => {
-        if (!address || !selectedAccount) return;
+        if (!address) return;
+        if (selectedProvider !== 'Hyperliquid' && !selectedAccount) return;
 
         try {
             setIsProcessing(true);
 
-            // Generate calldata for depositFor function on Diamond contract
-            const pearSymmioInterface = new ethers.Interface([
-                "function depositFor(address user, uint256 amount) external",
-            ]);
+            if (selectedProvider === 'Hyperliquid') {
+                // Use AArc to convert assets to USDC
+                aarcModal.updateRequestedAmount(Number(amount));
+                aarcModal.updateDestinationWalletAddress(address as `0x${string}`);
 
-            const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
+                aarcModal.updateEvents({
+                    onTransactionSuccess: () => {
+                        aarcModal.close();
+                        setShowProcessingModal(true);
+                        transferToHyperliquid();
+                    }
+                });
 
-            const contractPayload = pearSymmioInterface.encodeFunctionData("depositFor", [
-                selectedAccount.accountAddress, // Use the selected subaccount address
-                amountInWei,
-            ]);
+                // Open the Aarc modal
+                aarcModal.openModal();
+                setIsProcessing(false);
+            } else if (selectedProvider === 'Vertex' && selectedAccount) {
+                const vertexInterface = new ethers.Interface([
+                    "function depositCollateralWithReferral(bytes32 subaccount, uint32 productId, uint128 amount, string referralCode) external",
+                ]);
 
-            aarcModal.updateRequestedAmount(Number(amount));
+                const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
+                const subaccountBytes32 = generateVertexSubaccount(address as string, selectedAccount.name);
 
-            // Update Aarc's destination contract configuration
-            aarcModal.updateDestinationContract({
-                contractAddress: PEAR_SYMMIO_DIAMOND_ADDRESS[SupportedChainId.ARBITRUM],
-                contractName: "Pear Protocol Deposit",
-                contractGasLimit: "800000",
-                contractPayload: contractPayload
-            });
+                console.log("subaccountBytes32", subaccountBytes32);
 
-            // Open the Aarc modal
-            aarcModal.openModal();
-            setAmount('');
-            setIsProcessing(false);
+                const contractPayload = vertexInterface.encodeFunctionData("depositCollateralWithReferral", [
+                    subaccountBytes32,
+                    0, // productId
+                    amountInWei,
+                    'yYyPmQA9Wu' // referralCode
+                ]);
+
+                aarcModal.updateRequestedAmount(Number(amount));
+
+                // Update Aarc's destination contract configuration
+                aarcModal.updateDestinationContract({
+                    contractAddress: VERTEX_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM],
+                    contractName: "Vertex Protocol Deposit",
+                    contractGasLimit: "800000",
+                    contractPayload: contractPayload
+                });
+
+                // Open the Aarc modal
+                aarcModal.openModal();
+                setIsProcessing(false);
+            } else if (selectedAccount) {
+                // Original Pear Protocol deposit flow
+                const pearSymmioInterface = new ethers.Interface([
+                    "function depositFor(address user, uint256 amount) external",
+                ]);
+
+                const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
+
+                const contractPayload = pearSymmioInterface.encodeFunctionData("depositFor", [
+                    selectedAccount.accountAddress,
+                    amountInWei,
+                ]);
+
+                aarcModal.updateRequestedAmount(Number(amount));
+
+                // Update Aarc's destination contract configuration
+                aarcModal.updateDestinationContract({
+                    contractAddress: PEAR_SYMMIO_DIAMOND_ADDRESS[SupportedChainId.ARBITRUM],
+                    contractName: "Pear Protocol Deposit",
+                    contractGasLimit: "800000",
+                    contractPayload: contractPayload
+                });
+
+                // Open the Aarc modal
+                aarcModal.openModal();
+                setIsProcessing(false);
+            }
         } catch (error) {
             console.error("Error preparing deposit:", error);
             setIsProcessing(false);
@@ -165,7 +233,67 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
         }
     };
 
-    const shouldDisableInteraction = isWrongNetwork || (!subAccounts.length && !isCreatingNewAccount);
+    const transferToHyperliquid = async () => {
+        if (!address || !walletClient) return;
+
+        try {
+            setError(null);
+            setIsProcessing(true);
+
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            // Check if we're on Arbitrum, if not switch
+            if (chain?.id !== ARB_CHAIN_ID) {
+                setShowProcessingModal(true);
+                await switchChain({ chainId: ARB_CHAIN_ID });
+
+                // Wait for network switch to complete
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            const provider = new ethers.BrowserProvider(walletClient);
+            const signer = await provider.getSigner();
+
+            const usdcContract = new ethers.Contract(
+                USDC_ADDRESS,
+                USDC_ABI,
+                signer
+            );
+
+            const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
+
+            // Check allowance
+            const allowance = await usdcContract.allowance(address, HYPERLIQUID_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM]);
+            if (allowance < amountInWei) {
+                // Need to approve first
+                const approveTx = await usdcContract.approve(
+                    HYPERLIQUID_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM],
+                    amountInWei
+                );
+                await approveTx.wait();
+            }
+
+            // Now do the transfer
+            const tx = await usdcContract.transfer(
+                HYPERLIQUID_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM],
+                amountInWei
+            );
+
+            // Wait for transaction to be mined
+            await tx.wait();
+
+            setShowProcessingModal(false);
+            setIsProcessing(false);
+        } catch (error) {
+            console.error("Error transferring USDC to Hyperliquid:", error);
+            setError(error instanceof Error ? error.message : "An error occurred during the transfer");
+            setShowProcessingModal(false);
+            setIsProcessing(false);
+        }
+    };
+
+    const shouldDisableInteraction = isWrongNetwork ||
+        (selectedProvider !== 'Hyperliquid' && !subAccounts.length && !isCreatingNewAccount);
 
     return (
         <div className="min-h-screen bg-aarc-bg grid-background">
@@ -183,51 +311,73 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                         </div>
                     )}
 
+                    {showProcessingModal && selectedProvider === 'Hyperliquid' && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
+                            <div className="bg-[#2D2D2D] rounded-2xl p-8 max-w-md w-full mx-4 shadow-[0_4px_20px_rgba(0,0,0,0.25)] border border-[#424242]">
+                                <div className="flex flex-col items-center gap-4">
+                                    <img src="/pear-name-logo.svg" alt="Hyperliquid" className="w-32 h-16" />
+                                    <h3 className="text-[18px] font-semibold text-[#F6F6F6] text-center">
+                                        {chain?.id !== ARB_CHAIN_ID
+                                            ? "Switching to Arbitrum Network..."
+                                            : "Transferring to "}
+                                        {chain?.id === ARB_CHAIN_ID && (
+                                            <a href="https://pear-git-feat-hyperliquid-ui-pear-labs.vercel.app/trade/hyperliquid/beta/HYPE-ETH" target="_blank" rel="noopener noreferrer" className="underline text-[#A5E547]">Pear x Hyperliquid</a>
+                                        )}
+                                    </h3>
+                                    <p className="text-[14px] text-[#C3C3C3] text-center">
+                                        {chain?.id !== ARB_CHAIN_ID
+                                            ? "Please approve the network switch in your wallet."
+                                            : "Please confirm the transaction in your wallet to complete the deposit."}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Account Selection or Create First Account */}
                     <div className="w-full relative">
                         <h3 className="text-[14px] font-semibold text-[#F6F6F6] mb-4">Account to Deposit in</h3>
-
-                        {subAccounts.length > 0 ? (
-                            <div className="flex flex-col gap-2">
-                                <div className="relative">
-                                    <button
-                                        onClick={() => !shouldDisableInteraction && setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                                        disabled={shouldDisableInteraction}
-                                        className="flex items-center justify-between w-full p-3 bg-[#2A2A2A] border border-[#424242] rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                        <div className="flex flex-col gap-2">
+                            <div className="relative">
+                                <button
+                                    onClick={() => !shouldDisableInteraction && setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+                                    disabled={shouldDisableInteraction}
+                                    className="flex items-center justify-between w-full p-3 bg-[#2A2A2A] border border-[#424242] rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <span className="text-base text-[#F6F6F6] font-normal">
+                                        {selectedProvider}
+                                    </span>
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 16 16"
+                                        fill="none"
+                                        className={`transform transition-transform ${isProviderDropdownOpen ? 'rotate-180' : ''}`}
+                                        xmlns="http://www.w3.org/2000/svg"
                                     >
-                                        <span className="text-base text-[#F6F6F6] font-normal">
-                                            {selectedProvider}
-                                        </span>
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            className={`transform transition-transform ${isProviderDropdownOpen ? 'rotate-180' : ''}`}
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            <path d="M4 6L8 10L12 6" stroke="#F6F6F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </button>
+                                        <path d="M4 6L8 10L12 6" stroke="#F6F6F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </button>
 
-                                    {isProviderDropdownOpen && (
-                                        <div className="absolute w-full mt-2 bg-[#2A2A2A] border border-[#424242] rounded-2xl overflow-hidden z-50">
-                                            {PEAR_PROVIDERS.map((provider) => (
-                                                <button
-                                                    key={provider}
-                                                    onClick={() => {
-                                                        setSelectedProvider(provider);
-                                                        setIsProviderDropdownOpen(false);
-                                                    }}
-                                                    className="w-full p-3 text-left text-[#F6F6F6] hover:bg-[#424242] transition-colors"
-                                                >
-                                                    {provider}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                {isProviderDropdownOpen && (
+                                    <div className="absolute w-full mt-2 bg-[#2A2A2A] border border-[#424242] rounded-2xl overflow-hidden z-50">
+                                        {PEAR_PROVIDERS.map((provider) => (
+                                            <button
+                                                key={provider}
+                                                onClick={() => {
+                                                    setSelectedProvider(provider);
+                                                    setIsProviderDropdownOpen(false);
+                                                }}
+                                                className="w-full p-3 text-left text-[#F6F6F6] hover:bg-[#424242] transition-colors"
+                                            >
+                                                {provider}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
+                            {selectedProvider !== 'Hyperliquid' && (
                                 <div className="relative">
                                     <button
                                         onClick={() => !shouldDisableInteraction && setIsDropdownOpen(!isDropdownOpen)}
@@ -279,18 +429,8 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        ) : !address ? (
-                            <StyledConnectButton />
-                        ) : (
-                            <button
-                                onClick={() => !isWrongNetwork && setIsCreatingNewAccount(true)}
-                                disabled={isWrongNetwork}
-                                className="flex items-center justify-center w-full p-3 bg-[#A5E547] text-[#003300] font-semibold rounded-2xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed gap-2"
-                            >
-                                Create your first account
-                            </button>
-                        )}
+                            )}
+                        </div>
                     </div>
 
                     {/* Create New Account Form */}
@@ -319,6 +459,17 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                                         {isCreatingAccount ? 'Creating...' : 'Create'}
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showMinDepositWarning && (
+                        <div className="w-full p-4 bg-[rgba(255,77,77,0.05)] border border-[rgba(255,77,77,0.2)] rounded-2xl">
+                            <div className="flex items-start gap-2">
+                                <img src="/warning-icon.svg" alt="Warning" className="w-4 h-4 mt-[2px]" />
+                                <p className="text-xs font-bold text-[#FF4D4D] leading-5">
+                                    Minimum deposit amount for {selectedProvider} is {MIN_DEPOSIT_AMOUNT} USDC
+                                </p>
                             </div>
                         </div>
                     )}
