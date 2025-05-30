@@ -190,6 +190,8 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
 
                 aarcModal.updateRequestedAmount(Number(amount));
 
+                aarcModal.updateDestinationWalletAddress(VERTEX_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM] as `0x${string}`);
+
                 // Update Aarc's destination contract configuration
                 aarcModal.updateDestinationContract({
                     contractAddress: VERTEX_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM],
@@ -215,6 +217,8 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                 ]);
 
                 aarcModal.updateRequestedAmount(Number(amount));
+
+                aarcModal.updateDestinationWalletAddress(PEAR_SYMMIO_DIAMOND_ADDRESS[SupportedChainId.ARBITRUM] as `0x${string}`);
 
                 // Update Aarc's destination contract configuration
                 aarcModal.updateDestinationContract({

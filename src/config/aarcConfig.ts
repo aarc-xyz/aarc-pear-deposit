@@ -32,7 +32,6 @@ export const aarcConfig: FKConfig = {
       contractGasLimit: "300000", // Standard gas limit, can be adjusted if needed
       contractLogoURI: "https://intent.pear.garden/favicon.ico"
     },
-    walletAddress: PEAR_SYMMIO_DIAMOND_ADDRESS[SupportedChainId.ARBITRUM],
     chainId: 42161, // Arb chain ID
     tokenAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // USDC on Base
   },
