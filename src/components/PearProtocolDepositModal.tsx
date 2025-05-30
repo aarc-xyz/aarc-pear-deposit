@@ -28,9 +28,11 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const { data: walletClient } = useWalletClient();
     const { disconnect } = useDisconnect();
     const { switchChain } = useSwitchChain();
-
+    
     const { address, chain } = useAccount();
-
+    
+    console.log("error", error);
+    
     const MIN_DEPOSIT_AMOUNT = 5;
     const showMinDepositWarning = (selectedProvider === 'Hyperliquid' || selectedProvider === 'Vertex') && Number(amount) < MIN_DEPOSIT_AMOUNT;
 
