@@ -16,7 +16,7 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const [isProcessing, setIsProcessing] = useState(false);
     const [subAccounts, setSubAccounts] = useState<SubAccount[]>([]);
     const [selectedAccount, setSelectedAccount] = useState<SubAccount | null>(null);
-    const [selectedProvider, setSelectedProvider] = useState('SYMM.io');
+    const [selectedProvider, setSelectedProvider] = useState('Vertex');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
@@ -34,7 +34,9 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const MIN_DEPOSIT_AMOUNT = 5;
     const showMinDepositWarning = (selectedProvider === 'Hyperliquid' || selectedProvider === 'Vertex') && Number(amount) < MIN_DEPOSIT_AMOUNT;
 
-    const generateVertexSubaccount = (userAddress: string, accountName: string) => {
+    const generateVertexSubaccount = (userAddress: string) => {
+
+        const accountName = 'pear';
         // Remove '0x' prefix if present
         const cleanAddress = userAddress.startsWith('0x') ? userAddress.slice(2) : userAddress;
 
@@ -71,7 +73,7 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const provider = new ethers.JsonRpcProvider(ARBITRUM_RPC_URL);
 
     useEffect(() => {
-        if (chain) {
+        if (chain && selectedProvider === 'SYMM.io') {
             setIsWrongNetwork(chain.id !== ARB_CHAIN_ID);
         }
     }, [chain]);
@@ -175,7 +177,7 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                 ]);
 
                 const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
-                const subaccountBytes32 = generateVertexSubaccount(address as string, selectedAccount.name);
+                const subaccountBytes32 = generateVertexSubaccount(address as string);
 
                 console.log("subaccountBytes32", subaccountBytes32);
 
@@ -183,7 +185,7 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                     subaccountBytes32,
                     0, // productId
                     amountInWei,
-                    'yYyPmQA9Wu' // referralCode
+                    '-1' // referralCode
                 ]);
 
                 aarcModal.updateRequestedAmount(Number(amount));
@@ -377,7 +379,7 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                                 )}
                             </div>
 
-                            {selectedProvider !== 'Hyperliquid' && (
+                            {selectedProvider === 'SYMM.io' && (
                                 <div className="relative">
                                     <button
                                         onClick={() => !shouldDisableInteraction && setIsDropdownOpen(!isDropdownOpen)}
