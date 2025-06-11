@@ -5,7 +5,6 @@ import { AarcFundKitModal } from '@aarc-xyz/fundkit-web-sdk';
 import { ARBITRUM_RPC_URL, multiAccountAbi, PEAR_PROVIDERS, PEAR_SYMMIO_ACCOUNT_ADDRESS, PEAR_SYMMIO_DIAMOND_ADDRESS, SupportedChainId, USDC_ADDRESS, USDC_ABI, HYPERLIQUID_DEPOSIT_ADDRESS, VERTEX_DEPOSIT_ADDRESS } from '../constants';
 import { ARB_CHAIN_ID } from '../chain';
 import { Navbar } from './Navbar';
-import { hyperliquidAarcConfig } from '../config/hyperliquidAarcConfig';
 
 interface SubAccount {
     accountAddress: string;
@@ -31,12 +30,6 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
     const { switchChain } = useSwitchChain();
     
     const { address, chain } = useAccount();
-
-    const hyperLiquidAarcModalRef = useRef(
-        new AarcFundKitModal(hyperliquidAarcConfig)
-    );
-
-    const hyperLiquidAarcModal = hyperLiquidAarcModalRef.current;
 
     console.log("error", error);
     
@@ -166,19 +159,20 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
 
             if (selectedProvider === 'Hyperliquid') {
                 // Use AArc to convert assets to USDC
-                hyperLiquidAarcModal.updateRequestedAmount(Number(amount));
-                hyperLiquidAarcModal.updateDestinationWalletAddress(address as `0x${string}`);
+                aarcModal.reset();
+                aarcModal.updateRequestedAmount(Number(amount));
+                aarcModal.updateDestinationWalletAddress(address as `0x${string}`);
 
-                hyperLiquidAarcModal.updateEvents({
+                aarcModal.updateEvents({
                     onTransactionSuccess: () => {
-                        hyperLiquidAarcModal.close();
+                        aarcModal.close();
                         setShowProcessingModal(true);
                         transferToHyperliquid();
                     }
                 });
 
                 // Open the Aarc modal
-                hyperLiquidAarcModal.openModal();
+                aarcModal.openModal();
                 setIsProcessing(false);
             } else if (selectedProvider === 'Vertex' && selectedAccount) {
                 const vertexInterface = new ethers.Interface([
@@ -245,7 +239,6 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
             console.error("Error preparing deposit:", error);
             setIsProcessing(false);
             aarcModal.close();
-            hyperLiquidAarcModal.close();
         }
     };
 
