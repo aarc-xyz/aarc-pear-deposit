@@ -191,6 +191,8 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                     '-1' // referralCode
                 ]);
 
+                aarcModal.reset();
+
                 aarcModal.updateRequestedAmount(Number(amount));
 
                 aarcModal.updateDestinationWalletAddress(VERTEX_DEPOSIT_ADDRESS[SupportedChainId.ARBITRUM] as `0x${string}`);
@@ -218,6 +220,8 @@ export const PearProtocolDepositModal = ({ aarcModal }: { aarcModal: AarcFundKit
                     selectedAccount.accountAddress,
                     amountInWei,
                 ]);
+
+                aarcModal.reset();
 
                 aarcModal.updateRequestedAmount(Number(amount));
 
